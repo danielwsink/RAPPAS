@@ -692,13 +692,19 @@ public class PlacementProcess {
             // BUILD THE ALIGNMENT AND SCORE IN A SINGLE LOOP ON QUERY WORDS
             ////////////////////////////////////////////////////////////////
 //            long startAlignTime=System.currentTimeMillis();
-            Infos.println("Launching scoring on candidate nodes...");
+//            Infos.println("Launching scoring on candidate nodes...");
             boolean[][] merFound=new boolean[session.ARTree.getNodeCount()][sk.getMerCount()]; //merFound[nodeId][merPos]
             //loop on words
             byte[] qw=null;
             while ((qw=sk.getNextByteWord())!=null) {
-                //Infos.println("Query mer: "+qw.toString());
+                //Infos.println("Query mer: "+Arrays.toString(qw));
                 
+                //if the knife returns a null, we had an ambiguous state
+                //so with continue to next kmer
+                if (Arrays.equals(qw,SequenceKnife.AMBIGUOUS_KMER)) {
+                    queryKmerCount++;
+                    continue;
+                }
                 //get Pairs associated to this word
 //                long startT1Time=System.currentTimeMillis();
                 Char2FloatMap.FastEntrySet allPairs =null;
@@ -720,6 +726,7 @@ public class PlacementProcess {
                 queryKmerMatchingDB++;
                 
                 //stream version, 5-10% faster than allPairs.fastIterator()
+                final int p=queryKmerCount;
                 allPairs.stream().forEach( (entry) -> {
                     int nodeId=entry.getCharKey();
                     //int nodeId=entry.getNodeId();
@@ -772,10 +779,10 @@ public class PlacementProcess {
 //            }
 
 
-            Infos.println("Proportion of query words retrieved in the hash: "+queryKmerMatchingDB+"/"+queryKmerCount);
+//            Infos.println("Proportion of query words retrieved in the hash: "+queryKmerMatchingDB+"/"+queryKmerCount);
 //            long endAlignTime=System.currentTimeMillis();
 //            totalAlignTime+=(endAlignTime-startAlignTime);
-            //Infos.println("Candidate nodes: "+selectedNodes.size()+" ");      
+            Infos.println("Candidate nodes: "+selectedNodes.size()+" ");      
 
             //if selectedNodes is empty (no node could be associated)
             //for instance when no query words could be found in the hash

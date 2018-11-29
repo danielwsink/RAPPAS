@@ -5,6 +5,7 @@
  */
 package core.algos;
 
+import etc.Infos;
 import java.util.ArrayList;
 import java.util.Arrays;
 import main_v2.SessionNext_v2;
@@ -123,12 +124,14 @@ public class WordExplorer_v3 {
             //register word
             if (!boundReached) {
                 byte[] w=null;
+                if (refPosition==3600) {
+                    Infos.println("pos: "+refPosition+" nodeId: "+nodeId+" REGISTER: "+Arrays.toString(word)+" log10(PP*)="+currentLogSum);
+                }
                 if (wordCompression) {
                     w=session.states.compressMer(Arrays.copyOf(word, word.length));
                 } else {
                     w=Arrays.copyOf(word, word.length);
                 }
-                //Infos.println("REGISTER: "+Arrays.toString(word)+" log10(PP*)="+currentLogSum);
                 session.hash.addTuple(w, currentLogSum, originalId, refPosition);
                 generateTupleCount+=1;
             }

@@ -41,6 +41,8 @@ public class SequenceKnife {
      */
     final public static int SAMPLING_NON_OVERLAPPING=4;
     
+    final public static byte[] AMBIGUOUS_KMER=new byte[1]; //reserved value x00000000 to describe an ambigous kmer
+    
     private Long seed=null;
     
     private int k=-1;
@@ -50,6 +52,7 @@ public class SequenceKnife {
     private int[] merOrder=null; //to define the order in which the mer are returned
     private States s=null;
     private int step=-1;
+    private boolean[] ambiguousKmer=null; //when true, kmer starting at this position would contain an ambiguous state, so skipped.
     
     /**
      * Basic constructor, will return mers in linear order
@@ -132,23 +135,25 @@ public class SequenceKnife {
     
     private void initTables(String seq, int samplingMode) throws NonSupportedStateException {
         sequence=new byte[seq.length()];
+        ambiguousKmer=new boolean[seq.length()];
         for (int i = 0; i < seq.length(); i++) {
             
-            //test all characters of query
-            if (s.isAmbiguous(seq.charAt(i))) { //expected states
-                Infos.println("Ambiguous state not supported in queries (char='"+seq.charAt(i)+"'), corresponding k-mers are ignored.");
-            } else { //test state
-                try {
-                    s.stateToByte(seq.charAt(i));
-                } catch (NonSupportedStateException ex) {
-                    ex.printStackTrace(System.err);
-                    System.out.println("Query contains a non supported state.");
-                    System.exit(1); //do not exit here, AR will take care of transforming them to gaps
+            try {
+                sequence[i]=s.stateToByte(seq.charAt(i));
+                if (s.isAmbiguous(seq.charAt(i))) { //expected states?
+                    Infos.println("Ambiguous state in position "+(i+1)+" (char='"+seq.charAt(i)+"'), overlapping k-mers are ignored.");
+                    for (int j=i-k+1; j<i+1; j++) {
+                        if (j>-1 && j<seq.length()+1) {
+                            ambiguousKmer[j]=true;
+                        }
+                    }
                 }
+            } catch (NonSupportedStateException ex) {
+                ex.printStackTrace(System.err);
+                System.out.println("Query contains a non supported state.");
+                System.exit(1);
             }
-            
-            
-            sequence[i]=s.stateToByte(seq.charAt(i));
+              
         }
         //Infos.println("Binary seq: "+Arrays.toString(sequence));
         switch (samplingMode) {
@@ -256,7 +261,7 @@ public class SequenceKnife {
     
     /**
      * must be called to retireve mers one by one
-     * @return the next mer as a @Word, null is no more mers to return
+     * @return the next mer as a @Word, null is no more mers to return or a mer with at least one ambiguous state
      */
     public byte[] getNextByteWord() {
         if (iterator>merOrder.length-1) {
@@ -266,6 +271,12 @@ public class SequenceKnife {
         int charactersLeft=sequence.length-currentPosition;
         if (charactersLeft>=minK) {
             byte[] word=null;
+            //return null when this mer was marked as containing an ambiguous state
+            if (ambiguousKmer[currentPosition]) {
+                iterator++;
+                return AMBIGUOUS_KMER;
+            }
+            //otherwise return mer
             if (charactersLeft<k) {
                 word=Arrays.copyOfRange(sequence, currentPosition, currentPosition+charactersLeft);
             } else {
